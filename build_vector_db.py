@@ -12,8 +12,7 @@ def process_input_folder(input_folder):
         print(f"Embedding file: {filename}") 
         input_path = os.path.join(input_folder, filename)
         if filename.endswith(".csv"):
-            # embedder = CSVEmbedder(input_path)
-            pass
+            embedder = CSVEmbedder(input_path)
         elif filename.endswith(".txt"):
             embedder = TXTEmbedder(input_path)
         else:
@@ -21,12 +20,10 @@ def process_input_folder(input_folder):
             continue
 
         # Process the input file (text or CSV), generate summary and metadata
-        if filename.endswith(".txt"): ## TODO: remove test
-            lines, summary = embedder.process()
+        lines, summary = embedder.process()
 
         # Store embeddings and summary in Chroma DB
-        if filename.endswith(".txt"): ## TODO: remove test
-            store_embeddings(lines, summary, collection)
+        store_embeddings(lines, summary, collection)
 
     print("--------------------------------------------------------")
     print("Embeddings and summary stored successfully in Chroma DB!")
