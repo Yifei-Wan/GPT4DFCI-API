@@ -56,6 +56,5 @@ class TXTEmbedder:
         with open(self.input_path, 'r') as file:
             lines = [line.strip() for line in file.readlines() if line.strip()]
         # Concatenate with file name
-        lines = [f"file name: {file_name}, content: {line}" for line in lines]
-        summary = None  # No summary for TXT files
+        summary = f"file name: {file_name}"  # No summary for TXT files
         return lines, summary
