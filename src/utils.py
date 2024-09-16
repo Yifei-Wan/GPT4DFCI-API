@@ -35,7 +35,6 @@ def summarize_text(text, metadata, path):
     head_text = text[:1000]  # Pass the first 1000 characters for summarization
     metadata = " ".join(metadata.split("\n"))
     head_text = f"file name: {path} " + head_text + f" metadata {metadata}"
-    print(head_text)
     response = client.chat.completions.create(
         model=completion_model,
         messages=[
@@ -44,9 +43,6 @@ def summarize_text(text, metadata, path):
         ],
         max_tokens=500 # Limit the length of the summary
     )
-    print("---------------------------------------------------------")
-    print(" ".join(response.choices[0].message.content.strip().split("\n")))
-    print("---------------------------------------------------------")
     return " ".join(response.choices[0].message.content.strip().split("\n"))  
 
 def store_embeddings(lines, summary, collection):
@@ -62,8 +58,8 @@ def store_embeddings(lines, summary, collection):
                 ids=[unique_id]
             )
         else:
-            pass
-            #print(f"ID {unique_id} for text '{line[:30]}...' already exists. Skipping insertion.")
+            # print(f"ID {unique_id} for text '{line[:10]}...' already exists. Skipping insertion.")
+            continue
     
     # Embed the summary if it exists
     if summary:
@@ -77,12 +73,11 @@ def store_embeddings(lines, summary, collection):
                 ids=[unique_id]
             )
         else:
-            print(f"ID {unique_id} for the summary already exists. Skipping insertion.")
+            pass
+            # print(f"ID {unique_id} for the summary already exists. Skipping insertion.")
 
 def generate_answer(question, relevant_docs, azure_openai_client, model="gpt-4o-2024-05-13-api"):
     # Prepare the context for the GPT model
-    # print(relevant_docs['metadatas'][0])
-    # print(relevant_docs['documents'])
     context = " ".join(relevant_docs['documents'][0])
 
     # Generate the answer using Azure OpenAI GPT-4o
