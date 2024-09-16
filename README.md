@@ -49,7 +49,7 @@ Close the window after logging in and get back to the shell.
 ## 🟢  Run the chatbot demo
 
 ### Set up environment variables
-In the file called `.env`, fill in the following values:
+Please copy the template file `env_template` to create `.env` and fill in the following values:
 
 ```
 AZURE_OPENAI_ENDPOINT=https://...
