@@ -7,6 +7,7 @@ def process_input_folder(input_folder):
     # Get or create the collection
     collection = get_or_create_collection()
 
+    print("========================================================")
     for filename in os.listdir(input_folder):
         print(f"Embedding file: {filename}") 
         input_path = os.path.join(input_folder, filename)
@@ -27,7 +28,9 @@ def process_input_folder(input_folder):
         if filename.endswith(".txt"): ## TODO: remove test
             store_embeddings(lines, summary, collection)
 
+    print("--------------------------------------------------------")
     print("Embeddings and summary stored successfully in Chroma DB!")
+    print("========================================================")
 
 def main():
     parser = argparse.ArgumentParser(description="Embed CSV and TXT files into vector space and store in Chroma DB.")
