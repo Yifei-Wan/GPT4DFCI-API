@@ -57,7 +57,8 @@ def store_embeddings(lines, summary, collection):
             embedding_vector = embed_text(line)
             collection.add(
                 embeddings=[embedding_vector],
-                metadatas=[{"input_text": line}],
+                documents=[line],  # Store the document separately
+                metadatas=[{"data_type": "document"}],
                 ids=[unique_id]
             )
         else:
@@ -71,8 +72,45 @@ def store_embeddings(lines, summary, collection):
             summary_embedding = embed_text(summary)
             collection.add(
                 embeddings=[summary_embedding],
-                metadatas=[{"input_text": "Summary", "summary": summary}],
+                documents=[summary],  # Store the document separately
+                metadatas=[{"data_type": "summary"}],
                 ids=[unique_id]
             )
         else:
             print(f"ID {unique_id} for the summary already exists. Skipping insertion.")
+
+def generate_answer(question, relevant_docs, azure_openai_client, model="gpt-4o-2024-05-13-api"):
+    # Prepare the context for the GPT model
+    # print(relevant_docs['metadatas'][0])
+    # print(relevant_docs['documents'])
+    context = " ".join(relevant_docs['documents'][0])
+
+    # Generate the answer using Azure OpenAI GPT-4o
+    response = azure_openai_client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are an AI with super-human data extraction and summarization abilities."},
+            {"role": "user", "content": f"Context: {context}\n\nQuestion: {question}"}
+        ],
+        max_tokens=1500
+    )
+    
+    return response.choices[0].message.content.strip()
+
+def get_relevant_docs(question, chroma_client, collection_name="my_embeddings_collection"):
+    """Retrieve relevant documents based on the similarity of embeddings."""
+    
+    # Convert the question into an embedding
+    question_embedding = embed_text(question)
+    
+    # Get the collection from Chroma client
+    collection = chroma_client.get_collection(name=collection_name)
+    
+    # Query the collection for relevant documents
+    results = collection.query(
+        query_embeddings=[question_embedding],
+        include=["documents"],
+        n_results=10  # Adjust as needed
+    )
+    
+    return results
