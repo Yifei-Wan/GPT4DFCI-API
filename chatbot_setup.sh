@@ -14,11 +14,3 @@ fi
 # Azure login
 az login --allow-no-subscriptions
 
-# Set environment variables from .env file
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
-    echo "Environment variables set from .env file."
-else
-    echo ".env file not found. Exiting."
-    exit 1
-fi
