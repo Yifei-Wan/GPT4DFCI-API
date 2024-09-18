@@ -43,7 +43,7 @@ class CSVEmbedder:
         """
         return ", ".join([f"{col}: {row[col]}" for col in row.index])
 
-    def generate_schema_and_summary(self, df, n_rows=30):
+    def generate_schema_and_summary(self, df, n_rows=50):
         """
         Calls the completion API to generate a schema and summary for the DataFrame.
         """
@@ -53,9 +53,9 @@ class CSVEmbedder:
 
         # Check if table has fewer than 30 rows and adjust number of rows for summary
         if len(df) <= n_rows:
-            sample_rows = df.to_string(index=False)  # Use the entire table if rows < 30
+            sample_rows = df.to_string(index=False)  # Use the entire table if rows < 50
         else:
-            sample_rows = df.head(self.head_rows).to_string(index=False)  # Use head part if more than 30 rows
+            sample_rows = df.head(n_rows).to_string(index=False)  # Use head part if more than 30 rows
 
         # Prepare the question for GPT
         question = "Can you summarize the following table schema and provide a concise overview of the data?"
