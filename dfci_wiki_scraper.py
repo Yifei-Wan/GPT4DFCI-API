@@ -4,15 +4,23 @@ import csv
 import os
 import re
 import argparse
+import urllib3
 from typing import List, Optional
+
+# Suppress only the single InsecureRequestWarning from urllib3 needed for this script
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def fetch_page_content(url: str) -> Optional[BeautifulSoup]:
     """Fetch the content of the page and return a BeautifulSoup object."""
-    response = requests.get(url, verify=False)  # verify=False to ignore SSL certificate validation
-    if response.status_code == 200:
-        return BeautifulSoup(response.content, 'html.parser')
-    else:
-        print(f"Failed to retrieve the page. Status code: {response.status_code}")
+    try:
+        response = requests.get(url, verify=False)  # verify=False to ignore SSL certificate validation
+        if response.status_code == 200:
+            return BeautifulSoup(response.content, 'html.parser')
+        else:
+            print(f"Failed to retrieve the page. Status code: {response.status_code}")
+            return None
+    except requests.RequestException as e:
+        print(f"An error occurred while fetching the page: {e}")
         return None
 
 def clean_title(title: str) -> str:
@@ -43,33 +51,74 @@ def write_text_content(title: str, content: BeautifulSoup, filename: str) -> Non
                 text = link.text
                 txtfile.write(f"{text}: {href}\n")
         else:
-            print("No hyperlinks found.\n")
+            txtfile.write("No hyperlinks found.\n")
+
+def extract_table_content(table: BeautifulSoup, is_nested: bool = False) -> List[List[str]]:
+    """Extract the content of a table, including nested tables, and format them appropriately."""
+    rows = table.find_all('tr')
+    table_content = []
+
+    for row in rows:
+        # Avoid processing the row if it's part of a nested table
+        if row.find_parent('table') != table and not is_nested:
+            continue
+
+        cells = row.find_all(['th', 'td'])
+        cell_texts = []
+        for cell in cells:
+            # Check for nested tables inside the cell
+            nested_table = cell.find('table')
+            if nested_table:
+                # Recursively extract nested table content
+                nested_table_content = extract_nested_table_content(nested_table)
+                cell_texts.append(f"Nested Table: {nested_table_content}")
+            else:
+                # Extract normal cell content
+                cell_texts.append(cell.get_text(strip=True))
+
+        # Only add the row to table content if it's not a nested table
+        if not is_nested:
+            table_content.append(cell_texts)
+
+    return table_content
+
+def extract_nested_table_content(nested_table: BeautifulSoup) -> str:
+    """Extract the content of a nested table and format it as a string."""
+    nested_content = []
+    
+    # Loop over all rows in the nested table
+    for row in nested_table.find_all('tr'):
+        # Find all cells in the nested table row
+        cells = row.find_all(['th', 'td'])
+        # Join the contents of the cells with commas
+        nested_row_content = ",".join(cell.get_text(strip=True) for cell in cells)
+        # Add the row to the nested content
+        nested_content.append(nested_row_content)
+    
+    # Return the formatted nested table content
+    return "\\n".join(nested_content)
 
 def write_tables_to_csv(content: BeautifulSoup, title_prefix: str, output_folder: str) -> None:
     """Extract all tables and save them as CSV files."""
-    tables = content.find_all('table', {'class': 'wrapped confluenceTable'})
+    tables = content.find_all('table', {'class': ['confluenceTable', 'wrapped confluenceTable', 'wrapped fixed-table confluenceTable']})
     if tables:
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+        tables_folder = os.path.join(output_folder, 'tables')
+        if not os.path.exists(tables_folder):
+            os.makedirs(tables_folder)
         
         for i, table in enumerate(tables):
-            rows = table.find_all('tr')
+            # Skip tables inside other tables (nested tables)
+            if table.find_parent(['td', 'th']):
+                continue
+
+            # Extract table content (handling nested tables within cells)
+            table_content = extract_table_content(table)
+            csv_filename = os.path.join(tables_folder, f'{title_prefix}_table_{i+1}.csv')
             
-            # Open a CSV file to write the table data
-            csv_filename = os.path.join(output_folder, f'{title_prefix}_table_{i+1}.csv')
+            # Write the table content to a CSV file
             with open(csv_filename, 'w', newline='') as csvfile:
                 csvwriter = csv.writer(csvfile)
-                
-                for row in rows:
-                    # Check if the row contains header cells
-                    headers = row.find_all('th')
-                    if headers:
-                        header_texts = [header.get_text(strip=True) for header in headers]
-                        csvwriter.writerow(header_texts)
-                    else:
-                        cells = row.find_all('td')
-                        cell_texts = [cell.get_text(strip=True) for cell in cells]
-                        csvwriter.writerow(cell_texts)
+                csvwriter.writerows(table_content)
             print(f"Table {i+1} content has been written to '{csv_filename}'.")
     else:
         print("No tables found.")
@@ -109,7 +158,8 @@ def main(url: Optional[str], file: Optional[str], output_folder: str) -> None:
         with open(file, 'r') as f:
             urls = f.read().splitlines()
             for url in urls:
-                process_url(url, output_folder)
+                if url:
+                    process_url(url, output_folder)
     else:
         print("No URL or file provided.")
 
