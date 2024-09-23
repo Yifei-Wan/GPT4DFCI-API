@@ -53,28 +53,56 @@ def write_text_content(title: str, content: BeautifulSoup, filename: str) -> Non
         else:
             txtfile.write("No hyperlinks found.\n")
 
+def handle_rowspan(rowspan_cells: dict, row_idx: int, col_idx: int, cell_text: str, rowspan: int) -> None:
+    """Handle cells with rowspan by storing their content in the rowspan_cells dictionary."""
+    for r in range(1, rowspan):
+        if row_idx + r not in rowspan_cells:
+            rowspan_cells[row_idx + r] = {}
+        if col_idx not in rowspan_cells[row_idx + r]:
+            rowspan_cells[row_idx + r][col_idx] = []
+        rowspan_cells[row_idx + r][col_idx].append(cell_text)
+
 def extract_table_content(table: BeautifulSoup, is_nested: bool = False) -> List[List[str]]:
     """Extract the content of a table, including nested tables, and format them appropriately."""
     rows = table.find_all('tr')
     table_content = []
+    rowspan_cells = {}
 
-    for row in rows:
+    for row_idx, row in enumerate(rows):
         # Avoid processing the row if it's part of a nested table
         if row.find_parent('table') != table and not is_nested:
             continue
 
         cells = row.find_all(['th', 'td'])
         cell_texts = []
-        for cell in cells:
-            # Check for nested tables inside the cell
+        col_idx = 0
+
+        while col_idx < len(cells):
+            cell = cells[col_idx]
+            rowspan = int(cell.get('rowspan', 1))
+            colspan = int(cell.get('colspan', 1))
+            cell_text = cell.get_text(strip=True)
+
+            # Handle nested tables
             nested_table = cell.find('table')
             if nested_table:
-                # Recursively extract nested table content
                 nested_table_content = extract_nested_table_content(nested_table)
-                cell_texts.append(f"Nested Table: {nested_table_content}")
-            else:
-                # Extract normal cell content
-                cell_texts.append(cell.get_text(strip=True))
+                cell_text = f"Nested Table: {nested_table_content}"
+
+            # Handle rowspan
+            if rowspan > 1:
+                handle_rowspan(rowspan_cells, row_idx, col_idx, cell_text, rowspan)
+
+            # Handle colspan
+            for c in range(colspan):
+                cell_texts.append(cell_text)
+                col_idx += 1
+
+        # Add any cells from previous rowspans
+        if row_idx in rowspan_cells:
+            for col, texts in sorted(rowspan_cells[row_idx].items()):
+                merged_text = ";".join(texts)
+                cell_texts.insert(col, merged_text)
 
         # Only add the row to table content if it's not a nested table
         if not is_nested:
@@ -98,6 +126,27 @@ def extract_nested_table_content(nested_table: BeautifulSoup) -> str:
     # Return the formatted nested table content
     return "\\n".join(nested_content)
 
+def merge_rows(table_content: List[List[str]]) -> List[List[str]]:
+    """Merge rows with the same values in all columns except the last one."""
+    if not table_content:
+        return []
+
+    merged_content = [table_content[0]]  # Start with the header row
+
+    for i in range(1, len(table_content)):
+        current_row = table_content[i]
+        last_merged_row = merged_content[-1]
+
+        # Check if all columns except the last one are the same
+        if current_row[:-1] == last_merged_row[:-1]:
+            # Merge the last column values
+            last_merged_row[-1] += ";" + current_row[-1]
+        else:
+            # Add the current row as a new row
+            merged_content.append(current_row)
+
+    return merged_content
+
 def write_tables_to_csv(content: BeautifulSoup, title_prefix: str, output_folder: str) -> None:
     """Extract all tables and save them as CSV files."""
     tables = content.find_all('table', {'class': ['confluenceTable', 'wrapped confluenceTable', 'wrapped fixed-table confluenceTable']})
@@ -113,6 +162,7 @@ def write_tables_to_csv(content: BeautifulSoup, title_prefix: str, output_folder
 
             # Extract table content (handling nested tables within cells)
             table_content = extract_table_content(table)
+            table_content = merge_rows(table_content)
             csv_filename = os.path.join(tables_folder, f'{title_prefix}_table_{i+1}.csv')
             
             # Write the table content to a CSV file
