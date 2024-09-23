@@ -51,7 +51,7 @@ def write_text_content(title: str, content: BeautifulSoup, filename: str) -> Non
                 text = link.text
                 txtfile.write(f"{text}: {href}\n")
         else:
-            txtfile.write("No hyperlinks found.\n")
+            print("No hyperlinks found.")
 
 def handle_rowspan(rowspan_cells: dict, row_idx: int, col_idx: int, cell_text: str, rowspan: int) -> None:
     """Handle cells with rowspan by storing their content in the rowspan_cells dictionary."""
@@ -88,6 +88,10 @@ def extract_table_content(table: BeautifulSoup, is_nested: bool = False) -> List
             if nested_table:
                 nested_table_content = extract_nested_table_content(nested_table)
                 cell_text = f"Nested Table: {nested_table_content}"
+                nested_cells = nested_table.find_all(['th', 'td'])
+                for nested_cell in nested_cells:
+                    if nested_cell in cells:
+                        cells.remove(nested_cell)
 
             # Handle rowspan
             if rowspan > 1:
@@ -196,6 +200,7 @@ def process_url(url: str, output_folder: str) -> None:
             print("Main content not found.")
     else:
         print("Failed to retrieve the page content.")
+    print("--------------------------------------------------------------------")
 
 def main(url: Optional[str], file: Optional[str], output_folder: str) -> None:
     """Main function to orchestrate the scraping and writing process."""
