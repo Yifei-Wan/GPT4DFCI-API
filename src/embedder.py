@@ -47,6 +47,7 @@ class CSVEmbedder:
         """
         Calls the completion API to generate a schema and summary for the DataFrame.
         """
+        file_name = Path(self.input_path).stem
         # Prepare the schema: a list of column names and their data types
         schema = [f"{col}: {df[col].dtype}" for col in df.columns]
         schema_str = "\n".join(schema)
@@ -76,7 +77,7 @@ class CSVEmbedder:
             )
 
             # Extract the response text
-            schema_and_summary = response.choices[0].message.content.strip()
+            schema_and_summary = f"Table Name: {file_name}\n" + response.choices[0].message.content.strip()
         except Exception as e:
             raise e
             # print(f"Error generating schema and summary: {e}")
