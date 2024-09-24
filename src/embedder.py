@@ -52,11 +52,11 @@ class CSVEmbedder:
         schema = [f"{col}: {df[col].dtype}" for col in df.columns]
         schema_str = "\n".join(schema)
 
-        # Check if table has fewer than 30 rows and adjust number of rows for summary
+        # Check if table has fewer than first N rows and adjust number of rows for summary
         if len(df) <= n_rows:
-            sample_rows = df.to_string(index=False)  # Use the entire table if rows < 50
+            sample_rows = df.to_string(index=False)  # Use the entire table if rows <= N
         else:
-            sample_rows = df.head(n_rows).to_string(index=False)  # Use head part if more than 30 rows
+            sample_rows = df.head(n_rows).to_string(index=False)  # Use head part if more than N rows
 
         # Prepare the question for GPT
         question = "Can you summarize the following table schema and provide a concise overview of the data?"
@@ -77,7 +77,7 @@ class CSVEmbedder:
             )
 
             # Extract the response text
-            schema_and_summary = f"Table Name: {file_name}\n" + response.choices[0].message.content.strip()
+            schema_and_summary = f"Table Name: {file_name}. " + response.choices[0].message.content.strip()
         except Exception as e:
             raise e
             # print(f"Error generating schema and summary: {e}")
